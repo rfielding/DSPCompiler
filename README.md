@@ -43,20 +43,23 @@ LISP is more of a family of languages based around this trivial syntax.  Its mai
 When run through the compiler, it generates this:
 
 
-	/*
-	(do
-		(vset output  (vadd (vmul w0 w1) (vsmul w2 w3)))
-		(vset output1 (vadd a (vmul x (vadd y0 y1))))
-		(vset output2 (vadd c (vmul output1 (vsadd y2 sy3))))
-	)
-	*/
-	vDSP_vmul(w0,1,w1,1,accumulator0,1,length);
-	vDSP_vsvsmul(w2,1,&w3,accumulator1,1,length);
-	vDSP_vadd(accumulator0,1,accumulator1,1,output,1,length);
-	vDSP_vadd(y0,1,y1,1,accumulator4,1,length);
-	vDSP_vmul(x,1,accumulator4,1,accumulator5,1,length);
-	vDSP_vadd(a,1,accumulator5,1,output1,1,length);
-	vDSP_vsvsadd(y2,1,&sy3,accumulator8,1,length);
-	vDSP_vmul(output1,1,accumulator8,1,accumulator9,1,length);
-	vDSP_vadd(c,1,accumulator9,1,output2,1,length);
  
+	/*( do
+	 
+	  (in w0 w1 w2 w3 a x y0 y1)
+	  
+	  (vset output  (vadd (vmul w0 w1) (vsmul w2 w3)))
+	  (vset output1 (vadd a (vmul x (vadd y0 y1))))
+	  (vset output2 (vadd c (vmul output1 (vsadd y2 sy3))))
+	  
+	  (out output2)
+	)*/
+	vDSP_vmul(w0,1,w1,1,accumulator1,1,length);
+	vDSP_vsmul(w2,1,&w3,accumulator2,1,length);
+	vDSP_vadd(accumulator1,1,accumulator2,1,output,1,length);
+	vDSP_vadd(y0,1,y1,1,accumulator5,1,length);
+	vDSP_vmul(x,1,accumulator5,1,accumulator6,1,length);
+	vDSP_vadd(a,1,accumulator6,1,output1,1,length);
+	vDSP_vsadd(y2,1,&sy3,accumulator9,1,length);
+	vDSP_vmul(output1,1,accumulator9,1,accumulator10,1,length);
+	vDSP_vadd(c,1,accumulator10,1,output2,1,length);
