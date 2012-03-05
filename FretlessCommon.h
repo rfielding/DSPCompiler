@@ -3,7 +3,6 @@
 //  AlephOne
 //
 //  Created by Robert Fielding on 2/15/12.
-//  Copyright (c) 2012 Check Point Software. All rights reserved.
 //
 
 #ifndef FINGERMAX
