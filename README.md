@@ -14,6 +14,8 @@ The main problem I have with vDSP is when I am translating a function from my in
 		d[i] = 1 - a[i];
 	}
 
+So when you start refactoring the code, it begins to look like this:
+
 	#define INPARALLEL(statement,length) { for(int i=0; i<length; i++) { statement } }
 
 	INPARALLEL(a[i]  = b[i],length)
