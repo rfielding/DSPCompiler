@@ -35,8 +35,6 @@ class Reader:
   def __init__(self,fname):
     self.pushedChars = []
     self.file = open(fname,'r')
-    self.tokens = []
-    self.subtokens = None
     self.originalText = []
 
   def __iter__(self):
@@ -70,6 +68,7 @@ class DSPLisp:
     self.STOPSTATEMENT=2
     self.assembler = []
     self.nextAccumulator = 0
+    self.idx = "index"
 
   def isTokenChar(self,c):
     return (c=='_') or ('a' <= c <= 'z') or ('A' <= c <= 'Z') or ('0' <= c <= '9')
@@ -144,6 +143,10 @@ class DSPLisp:
         lastCopy = n
         lookForRegister = instruction[2]
         renameToRegister = instruction[1]
+      elif instruction[0] == "in":
+        pass
+      elif instruction[0] == "out":
+        pass
       elif lookForRegister:
         if instruction[1] == lookForRegister or instruction[2] == lookForRegister:
           #it was read before it was written, so it can't be optimized out
@@ -160,19 +163,90 @@ class DSPLisp:
     while startAt >= 0:
       startAt = self.removeRedundantCopy(startAt)
 
+  #Yes, I know... Giant polynomial overall
+  def performRename(self,startAt,lastReadInv,firstWriteInv):
+    #We can rename any register that is not an input or output
+    #and was firstRead after it was last written
+    #If renamings are transitive, then we create a minimum set of names
+    n = startAt
+    firstSeen = None
+    while n < len(self.assembler):
+      if n in lastReadInv:
+        if not firstSeen:
+          firstSeen = n
+        for first in lastReadInv[n]:
+          if not (first in self.inputs) and not (first in self.outputs):
+            m = n + 1
+            while m < len(self.assembler):
+              if m in firstWriteInv:
+                for second in firstWriteInv[m]:
+                  if not (second in self.inputs) and not (second in self.outputs):
+                    lastReadInv[n].remove(first)
+                    firstWriteInv[m].remove(second)
+                    for instruction in self.assembler:
+                      if second in instruction:
+                        r = 0
+                        while r < len(instruction):
+                          if instruction[r] == second:
+                            instruction[r] = first
+                          r = r + 1
+                    return True,firstSeen
+              m = m + 1
+      n = n + 1     
+    return False,firstSeen
+ 
+  def reuseRegisters(self):
+    #go through registers and compute their first and last use
+    firstWrite = {}
+    firstWriteInv = {}
+    lastRead  = {}
+    lastReadInv = {}
+    n = 0
+    while n < len(self.assembler):
+      instruction = self.assembler[n]
+      if instruction[0]=="vset":
+        if not instruction[1] in firstWrite:
+          firstWrite[instruction[1]] = n
+        lastRead[instruction[2]] = n
+      elif instruction[0] == "in":
+        self.inputs = instruction[1:-1]
+      elif instruction[0] == "out":
+        self.outputs = instruction[1:-1]
+      else:
+        if not instruction[3] in firstWrite:
+          firstWrite[instruction[3]] = n
+        lastRead[instruction[1]] = n
+        lastRead[instruction[2]] = n
+      n = n + 1
+    #invert the lists
+    for register in lastRead:
+      idx = lastRead[register]
+      if not idx in lastReadInv:
+        lastReadInv[idx]=[]
+      lastReadInv[idx].append(register)
+    for register in firstWrite:
+      idx = firstWrite[register]
+      if not idx in firstWriteInv:
+        firstWriteInv[idx]=[]
+      firstWriteInv[idx].append(register)
+    #Rename as much as possible
+    startAt = 0
+    more = True
+    while more:
+      more,startAt = self.performRename(startAt,lastReadInv,firstWriteInv)
+
   def optimize(self):
     self.removeRedundantCopies()
+    self.reuseRegisters()
 
   def generateVGeneric(self,type,instruction):
-    idx = "length";
     if len(instruction) != 4: raise Exception(str(instruction))
-    line="vDSP_{0}({1},1,{2},1,{3},1,{4});".format(type,instruction[1],instruction[2],instruction[3],idx)
+    line="vDSP_{0}({1},1,{2},1,{3},1,{4});".format(type,instruction[1],instruction[2],instruction[3],self.idx)
     print(line)
 
   def generateGeneric(self,type,instruction):
-    idx = "length";
     if len(instruction) != 4: raise Exception(str(instruction))
-    line="vDSP_{0}({1},1,&{2},{3},1,{4});".format(type,instruction[1],instruction[2],instruction[3],idx)
+    line="vDSP_{0}({1},1,&{2},{3},1,{4});".format(type,instruction[1],instruction[2],instruction[3],self.idx)
     print(line)
 
   def generateVAdd(self,instruction):
@@ -198,7 +272,7 @@ class DSPLisp:
 
   def generateMul(self,instruction):
     self.generateGeneric("vsmul",instruction)
- 
+
   def generate(self):
     print("/*" + "".join(self.reader.originalText) + "*/");
     for instruction in self.assembler:
@@ -221,6 +295,7 @@ class DSPLisp:
       elif instruction[0]=="out":
         pass
       elif instruction[0]=="do":
+        #A placeholder so that the first item is an action
         pass
       else:
         raise Exception(str(instruction))
