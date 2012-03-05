@@ -1,0 +1,232 @@
+#!/usr/bin/python
+import fileinput
+import sys
+
+#
+#A recursive descent parser for LISP to generate vDSP code
+#
+# TODO: this code is written as if tail call optimization happens.
+#  I may put in a trampoline if it becomes a problem
+#
+
+# The language we parse is a LISP variant that looks like this:
+#
+#( do
+#  (in w0 w1 w3 w3 a x y0 y1 c y2 sy3)
+#  (vset output  (vadd (vmul w0 w1) (vsmul w2 w3)))
+#  (vset output1 (vadd a (vmul x (vadd y0 y1))))
+#  (vset output2 (vadd c (vmul output1 (vsadd y2 sy3))))
+#  (out output2)
+#)
+#
+#The whole point of doing this is so that we can keep modifying this
+#compiler to take advantage of high level vDSP operations as we find that
+#they are necessary
+#
+
+
+##
+## Parsing utilities to read char by char with lookahead of 1
+##
+
+#Consume a file and allow bytes to be pushed back
+class Reader:
+
+  def __init__(self,fname):
+    self.pushedChars = []
+    self.file = open(fname,'r')
+    self.tokens = []
+    self.subtokens = None
+    self.originalText = []
+
+  def __iter__(self):
+    return self
+
+  def next(self):
+    if len(self.pushedChars)>0:
+      c = self.pushedChars.pop()
+    else:
+      c = self.file.read(1)
+      if not c:
+        self.file.close()
+        raise StopIteration
+      else:
+        self.originalText.append(c) 
+    return c
+
+  def prev(self,c):
+    self.pushedChars.append(c)
+
+
+##
+## This is a specific compiler for our LISP variant
+##
+class DSPLisp:
+
+  def __init__(self,reader):
+    self.reader = reader
+    self.tokens = []
+    self.STARTSTATEMENT=1
+    self.STOPSTATEMENT=2
+    self.assembler = []
+    self.nextAccumulator = 0
+
+  def isTokenChar(self,c):
+    return (c=='_') or ('a' <= c <= 'z') or ('A' <= c <= 'Z') or ('0' <= c <= '9')
+
+  def openToken(self,chars):
+    c = self.reader.next()
+    if self.isTokenChar(c):
+      chars.append(c)
+      self.openToken(chars)
+    else:
+      token = "".join(chars)
+      self.tokens.append(token)
+      self.reader.prev(c)
+      self.findStatement()
+
+  # Look for the beginning of a statement
+  def findStatement(self):
+    try:
+      c = self.reader.next()
+    except StopIteration:
+      return self.tokens
+    if c=='(':
+      self.tokens.append(self.STARTSTATEMENT)
+      self.findStatement()
+    elif c==')':
+      self.tokens.append(self.STOPSTATEMENT)
+      self.findStatement()
+    elif self.isTokenChar(c):
+      self.openToken([c])
+    else:
+      self.findStatement()
+
+  def tokenize(self):
+    self.findStatement()
+
+  def parseContinue(self):
+    n=0
+    while(True):
+      if n >= len(self.tokens):
+        return False
+      elif self.tokens[n]==self.STARTSTATEMENT:
+        lastStart=n
+      elif self.tokens[n]==self.STOPSTATEMENT:
+        lastStop=n
+        matched = self.tokens[lastStart+1:lastStop]
+        accumulatorName = "accumulator{0}".format(self.nextAccumulator)
+        self.nextAccumulator = self.nextAccumulator + 1 
+        matched.append(accumulatorName)
+        front = self.tokens[0:lastStart]
+        front.append(accumulatorName)
+        back = self.tokens[lastStop+1:]
+        self.tokens = front+back
+        self.assembler.append(matched)
+        return True
+      n=n+1
+    return True,lastStart
+
+  def parse(self):
+    more=True
+    while more:
+      more = self.parseContinue()
+
+  def removeRedundantCopy(self,startAt):
+    #walk from last instruction back to the last time the
+    #copied register was written.
+    n = len(self.assembler)-1
+    lookForRegister = None
+    renameToRegister = None
+    while n >= 0:
+      instruction = self.assembler[n]
+      if instruction[0] == "vset" and not lookForRegister:
+        lastCopy = n
+        lookForRegister = instruction[2]
+        renameToRegister = instruction[1]
+      elif lookForRegister:
+        if instruction[1] == lookForRegister or instruction[2] == lookForRegister:
+          #it was read before it was written, so it can't be optimized out
+          return lastCopy-1
+        if instruction[3] == lookForRegister:
+          instruction[3] = renameToRegister
+          self.assembler.remove(self.assembler[lastCopy])
+          return lastCopy-1
+      n = n - 1     
+    return -1
+ 
+  def removeRedundantCopies(self):
+    startAt = len(self.assembler)-1
+    while startAt >= 0:
+      startAt = self.removeRedundantCopy(startAt)
+
+  def optimize(self):
+    self.removeRedundantCopies()
+
+  def generateVGeneric(self,type,instruction):
+    idx = "length";
+    if len(instruction) != 4: raise Exception(str(instruction))
+    line="vDSP_v{0}({1},1,{2},1,{3},1,{4});".format(type,instruction[1],instruction[2],instruction[3],idx)
+    print(line)
+
+  def generateGeneric(self,type,instruction):
+    idx = "length";
+    if len(instruction) != 4: raise Exception(str(instruction))
+    line="vDSP_vs{0}({1},1,&{2},{3},1,{4});".format(type,instruction[1],instruction[2],instruction[3],idx)
+    print(line)
+
+  def generateVAdd(self,instruction):
+    self.generateVGeneric("add",instruction)
+
+  def generateVSub(self,instruction):
+    self.generateVGeneric("sub",instruction)
+
+  def generateVMul(self,instruction):
+    self.generateVGeneric("mul",instruction)
+
+  def generateVSet(self,instruction):
+    idx = "length";
+    if len(instruction) != 4: raise Exception(str(instruction))
+    line="xDSP_vcp({1},{0},{2});".format(instruction[1],instruction[2],idx)
+    print(line)
+
+  def generateAdd(self,instruction):
+    self.generateGeneric("vsadd",instruction)
+
+  def generateSub(self,instruction):
+    self.generateGeneric("vssub",instruction)
+
+  def generateMul(self,instruction):
+    self.generateGeneric("vsmul",instruction)
+ 
+  def generate(self):
+    print("/*" + "".join(self.reader.originalText) + "*/");
+    for instruction in self.assembler:
+      if   instruction[0]=="vadd":
+        self.generateVAdd(instruction) 
+      elif instruction[0]=="vsub":
+        self.generateVSub(instruction) 
+      elif instruction[0]=="vmul":
+        self.generateVMul(instruction) 
+      elif instruction[0]=="vset":
+        self.generateVSet(instruction)
+      elif instruction[0]=="vsadd":
+        self.generateAdd(instruction)
+      elif instruction[0]=="vssub":
+        self.generateSub(instruction)
+      elif instruction[0]=="vsmul":
+        self.generateMul(instruction)
+      elif instruction[0]=="do":
+        pass
+      else:
+        raise Exception(str(instruction))
+
+  def compile(self):
+    self.tokenize()
+    self.parse()
+    self.optimize()
+    self.generate()
+
+#Open up the file to be eaten character by character
+compiler=DSPLisp(Reader(sys.argv[1]))
+compiler.compile()
