@@ -36,7 +36,6 @@ So, the lack of clarity and the task of allocating an optimal number of temporar
 		(vset output  (vadd (vmul w0 w1) (vsmul w2 w3)))
 		(vset output1 (vadd a (vmul x (vadd y0 y1))))
 		(vset output2 (vadd c (vmul output1 (vsadd y2 sy3))))
-		(out output2)
 	)
 
 LISP is more of a family of languages based around this trivial syntax.  Its main benefit is that it is a direct representation of the syntax tree, and it is easy to treat it as a data structure.  With a small Python based compiler for it, adding in support for some of the more specialized vDSP functions and writing optimizers to avoid redundant work is really quite easy.
