@@ -1,0 +1,28 @@
+digraph {
+  start [label="Start"];
+  notcreated [label="NotCreated"];
+  initialized [label="Initialized"];
+  boot [label="Booted"];
+  accepting [label="Accepting"];
+  channelallocated [label="Channel.finger\nMIDI Channel is allocated"];
+  notedown [label="NoteDown.finger"];
+  noteup [label="NoteUp.finger"];
+
+  start -> notcreated;
+  notcreated -> initialized [label="Fretless_init"];
+  initialized -> boot [label="Fretless_boot"];
+  boot -> accepting; 
+  accepting -> channelallocated [label="Fretless_beginDown.finger"];
+  channelallocated -> notedown [label="Fretless_endDown.finger\n(pitch,vol,polygroup,legato,...)"];
+  channelallocated -> channelallocated [label="Fretless_express.finger\n(cc,val)"];
+  notedown -> notedown [label="Fretless_move.finger\n(pitch,...)\nMay cause retrigger"];
+  notedown -> notedown [label="Fretless_express.finger\n(cc,val)"];
+  notedown -> noteup [label="Fretless_up.finger\n(legato)"];
+  noteup -> accepting
+  noteup -> notcreated [label="Fretless_free"];
+  accepting -> boot [label="Fretless_boot\nPanic State can reboot"];
+  initialized -> initialized [label="Fretless_setMidiHint*"];
+  accepting -> accepting [label="Fretless_setMidiHint*"];
+  notedown -> notedown [label="Fretless_setMidiHint*"];
+  noteup -> noteup [label="Fretless_setMidiHint*"];
+}
