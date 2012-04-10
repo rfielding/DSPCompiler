@@ -1,3 +1,18 @@
+The part of this project that is mature is the Fretless and DeMIDI code.  These are the literal code that is used for AlephOne's MIDI generation.  It works very well for fretless MIDI.  It includes polyphony and fretless handling, while intonation and pitch rounding are not included here.  Contact me if you are trying to use this for iOS and need more detail than what is included here.  (No, I will not post a fully buildable iOS project on github again, especially before I release my own version into the store.)
+
+
+
+
+
+
+
+
+* Experimental
+* Experimental
+* Experimental Unfinished
+
+
+
 I am working on AlephOne, and though I am not quite ready to open source the whole project, there are bits of it that are definitely appropriate for being open sourced because getting compatibility among developers is a major issue right now when dealing with MIDI.  Now that I am working on a custom sound engine that deals very directly with my special MIDI variant, I am hoping to get some help from other developers that use vDSP routinely.   So here's a compiler to generate vDSP kernels that is written in Python so that it is easy to change.
 
 Apple's vDSP is a library from the Accelerate.Framework that lets you write data parallel code (ie: vector computing).  It is essentially an assembly language called from a C library where userspace arrays are treated as giant registers in which every element in the array is synchronously computed at the same time.  Projects like OpenCL and CUDA exist specifically because of this problem, though OpenCL isn't quite yet available on iOS yet (and therefore on older devices).  The principles are similar whether the parallelism comes from running on a GPU or from using vector instructions on the main processor.
