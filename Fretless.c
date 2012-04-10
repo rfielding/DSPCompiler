@@ -721,6 +721,12 @@ void Fretless_endDown(struct Fretless_context* ctxp, int finger,float fnote,int 
         ctxp->midiPutch(0);
         ctxp->noteChannelDownRawBalance[turningOffPtr->note][turningOffPtr->channel]--;
     }
+    
+    //Untested so far, but I think these two lines need to be in here for consistency,
+    //for the case where 0xD0 isn't same as volume change
+    ctxp->midiPutch(0xD0 + fsPtr->channel);
+    ctxp->midiPutch(fsPtr->velocity);    
+    
     ctxp->midiPutch(MIDI_ON + fsPtr->channel);
     ctxp->midiPutch(fsPtr->note);
     ctxp->midiPutch(fsPtr->velocity);
