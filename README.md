@@ -1,15 +1,18 @@
 The part of this project that is mature is the Fretless and DeMIDI code.  These are the literal code that is used for AlephOne's MIDI generation.  It works very well for fretless MIDI.  It includes polyphony and fretless handling, while intonation and pitch rounding are not included here.  Contact me if you are trying to use this for iOS and need more detail than what is included here.  (No, I will not post a fully buildable iOS project on github again, especially before I release my own version into the store.)
 
+* Fretless provides a way to render MIDI as fully polyphonic fretless
+* It includes notions of special polyphony rules (full poly, string mode, solo mode), via the abstraction of polyphonic groups, which are a notion like channels within an instrument.
+* It has custom note ties for MIDI, which are required to allow bending to work correctly in spite of how MIDI specifies it should work.
+* The note ties are used not only to get arbitrary bends regardless of the bend setting, but for legato as well (legato defined as restarting audio phase on new note versus continuing the phase for note in same polyphony group)
 
 
 
 
 
 
-
-* Experimental
-* Experimental
-* Experimental Unfinished
+Experimental
+Experimental
+Experimental Unfinished
 
 
 
