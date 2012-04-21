@@ -117,7 +117,8 @@ void Fretless_flush(struct Fretless_context* ctxp);
  * the fact that it's MIDI underneath are being allowed to leak through.  But I need this info
  * in the user interface rendition.
  */
-int Fretless_getChannelOccupancy(struct Fretless_context* ctxp, int channel);
+int   Fretless_getChannelOccupancy(struct Fretless_context* ctxp, int channel);
+float Fretless_getChannelVolume(struct Fretless_context* ctxp, int channel);
 
 /*
  * Get detail on the bend away from the 12ET note
