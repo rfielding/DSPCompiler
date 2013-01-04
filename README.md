@@ -1,3 +1,14 @@
+********
+
+Ignore this repository.  AlephOne is the full source code for all of this.
+Refer to that.  This is especially important if you are trying to get MIDI right
+from the few hints that only exist here in DSPCompiler.  AlephOne is the full source
+for the iOS app "Cantor".
+
+********
+
+
+
 The part of this project that is mature is the Fretless and DeMIDI code.  These are the literal code that is used for AlephOne's MIDI generation.  It works very well for fretless MIDI.  It includes polyphony and fretless handling, while intonation and pitch rounding are not included here.  Contact me if you are trying to use this for iOS and need more detail than what is included here.  (No, I will not post a fully buildable iOS project on github again, especially before I release my own version into the store.)
 
 * Fretless provides a way to render MIDI as fully polyphonic fretless
